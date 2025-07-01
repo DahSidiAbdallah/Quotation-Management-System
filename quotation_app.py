@@ -473,8 +473,8 @@ class QuotationApp(tb.Window):
             print("Avertissement : Impossible de charger l'icône MAFCI.ico pour la fenêtre :", e)
         self.geometry("800x600")
         init_db()
-        self.ask_doc_type_and_number()
         self.create_widgets()
+        self.ask_doc_type_and_number()
 
     def ask_doc_type_and_number(self):
         import tkinter as tk
@@ -575,15 +575,36 @@ class QuotationApp(tb.Window):
 
 
     def enable_widgets(self):
-        """Enable all widgets in the main window after document type and number are entered."""
+        """Enable the widgets in the main window after the startup dialog."""
         self.attributes('-disabled', False)
-        # Enable all child widgets
-        for child in self.winfo_children():
-            try:
-                if hasattr(child, 'configure') and 'state' in child.configure():
-                    child.configure(state='normal')
-            except Exception:
-                pass
+        # Combo boxes should remain read-only but not disabled
+        self.main_client_type_dropdown.config(state='readonly')
+        self.client_dropdown.config(state='readonly')
+        self.product_type_dropdown.config(state='readonly')
+        # Text entry fields
+        self.purchase_order_entry.config(state='normal')
+        self.quantity_entry.config(state='normal')
+        self.unit_price_entry.config(state='normal')
+        # Action buttons
+        for btn in (
+            self.add_client_btn,
+            self.edit_client_btn,
+            self.details_client_btn,
+            self.generate_pdf_btn,
+            self.preview_pdf_btn,
+            self.history_btn,
+        ):
+            btn.config(state='normal')
+
+    def _set_state_recursive(self, widget, state='normal'):
+        """Recursively set the state for widget and all of its children."""
+        try:
+            if 'state' in widget.configure():
+                widget.configure(state=state)
+        except Exception:
+            pass
+        for child in widget.winfo_children():
+            self._set_state_recursive(child, state)
 
     def setup_style(self):
         style = ttk.Style(self)
