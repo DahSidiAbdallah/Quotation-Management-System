@@ -5,8 +5,11 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 import os
+import json
+import sys
 from datetime import datetime
 from PIL import Image, ImageTk  # Added for logo support
+from tkinter import filedialog
 import pandas as pd  # For Excel export
 from pdf_viewer import PDFPreviewWindow
 import ttkbootstrap as tb
@@ -64,7 +67,6 @@ def create_pdf(pdf_filename, client_name, nif, rc, address, client_preferences,
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.utils import ImageReader
     from reportlab.lib import colors
-    import os
 
     c = canvas.Canvas(pdf_filename, pagesize=A4)
     width, height = A4
@@ -864,50 +866,16 @@ class QuotationApp(tb.Window):
             messagebox.showinfo("Succès", f"PDF généré avec succès : {os.path.basename(pdf_filename)}")
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de la génération du PDF : {e}")
-
-        from tkinter import filedialog
-        import json
-        client_name = self.client_var.get()
-        if not client_name:
-            messagebox.showerror("Erreur", "Veuillez sélectionner un client")
-            return
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('SELECT id, nif, rc, address, preferences FROM clients WHERE name=?', (client_name,))
-        client = c.fetchone()
-        conn.close()
-        if not client:
-            messagebox.showerror("Erreur", "Client non trouvé")
-            return
-        client_id, nif, rc, address, client_preferences = client
-        if client_preferences:
-            try:
-                client_preferences = json.loads(client_preferences)
-            except Exception:
-                client_preferences = {}
-        else:
-            client_preferences = {}
-        qtype = self.main_client_type_var.get()
-        number = self.purchase_order_var.get().strip()
-        product = self.product_type_var.get()
-        try:
-            quantity = float(self.quantity_entry.get())
-            unit_price = float(self.unit_price_entry.get())
-        except ValueError:
-            messagebox.showerror("Erreur", "La quantité et le prix unitaire doivent être des nombres")
-            return
-        montant_ht = quantity * unit_price
-        from datetime import datetime
         date_str = datetime.now().strftime("%Y-%m-%d")
         # Save to DB
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute('''INSERT INTO quotations (client_id, type, number, product, quantity, unit_price, date, purchase_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-              (client_id, qtype, number, product, quantity, unit_price, date_str, self.purchase_order_var.get()))
+              (client_id, doc_type, doc_number, product, quantity, unit_price, date_str, purchase_order))
         conn.commit()
         conn.close()
         # Choose save location for PDF
-        default_name = f"{qtype}_{client_name}_{number}_{date_str.replace('/', '-')}.pdf"
+        default_name = f"{doc_type}_{client_name}_{doc_number}_{date_str.replace('-', '')}.pdf"
         pdf_filename = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("Fichiers PDF", "*.pdf")], initialfile=default_name, title="Choisissez l'emplacement pour enregistrer le PDF")
         if not pdf_filename:
             return

@@ -3,6 +3,7 @@ from tkinter import Toplevel, Button, messagebox
 from PIL import Image, ImageTk
 from pdf2image import convert_from_path
 import os
+import sys
 
 class PDFPreviewWindow(Toplevel):
     def __init__(self, parent, pdf_path, on_generate_callback=None):
@@ -16,8 +17,33 @@ class PDFPreviewWindow(Toplevel):
         self.current_page = 0
         self.pages = []
         try:
-            # You may need to set poppler_path if not in PATH
-            self.pages = convert_from_path(pdf_path, dpi=120, poppler_path=r"C:\poppler\Library\bin")
+            # Try to find poppler in common locations
+            poppler_paths = [
+                r"C:\Program Files\poppler-23.11.0\Library\bin",  # Common Windows path
+                r"C:\Program Files\poppler\Library\bin",
+                r"C:\poppler\Library\bin",
+                r"C:\Program Files (x86)\poppler\Library\bin",
+                r"C:\Program Files\poppler-0.68.0\bin",  # Version might vary
+                r"C:\poppler-0.68.0\bin",
+                r"C:\poppler-23.11.0\Library\bin"  # Latest version as of now
+            ]
+            
+            # Try each path until one works
+            for path in poppler_paths:
+                if os.path.exists(path):
+                    try:
+                        self.pages = convert_from_path(pdf_path, dpi=120, poppler_path=path)
+                        break
+                    except Exception:
+                        continue
+            else:
+                # If no path worked, try without specifying poppler_path (in case it's in PATH)
+                try:
+                    self.pages = convert_from_path(pdf_path, dpi=120)
+                except Exception as e:
+                    messagebox.showerror("Erreur", f"Impossible de lire le PDF. Assurez-vous que Poppler est installé.\n\nDétails: {e}")
+                    self.destroy()
+                    return
         except Exception as e:
             messagebox.showerror("Erreur", f"Impossible de lire le PDF : {e}")
             self.destroy()
@@ -48,19 +74,32 @@ class PDFPreviewWindow(Toplevel):
         self.title(f"Aperçu du PDF - Page {page_num+1} / {len(self.pages)}")
 
     def display_image(self):
+        if not hasattr(self, 'pages') or not self.pages or self.current_page >= len(self.pages):
+            return
+            
         img = self.pages[self.current_page]
         w, h = img.size
-        canvas_w = self.canvas.winfo_width()
-        canvas_h = self.canvas.winfo_height()
-        # Fit to window with zoom
+        
+        # Get canvas dimensions with minimum size
+        canvas_w = max(100, self.canvas.winfo_width())
+        canvas_h = max(100, self.canvas.winfo_height())
+        
+        # Calculate scale with safety checks
+        if w <= 0 or h <= 0 or canvas_w <= 0 or canvas_h <= 0:
+            return
+            
         scale = min(canvas_w/w, canvas_h/h) * self.zoom
-        new_w = int(w * scale)
-        new_h = int(h * scale)
-        img_resized = img.resize((new_w, new_h), Image.LANCZOS)
-        self.tk_img = ImageTk.PhotoImage(img_resized)
-        self.canvas.delete('all')
-        self.canvas.create_image((canvas_w-new_w)//2, (canvas_h-new_h)//2, anchor='nw', image=self.tk_img)
-        self.canvas.config(scrollregion=self.canvas.bbox('all'))
+        new_w = max(1, int(w * scale))  # Ensure at least 1 pixel
+        new_h = max(1, int(h * scale))  # Ensure at least 1 pixel
+        
+        try:
+            img_resized = img.resize((new_w, new_h), Image.LANCZOS)
+            self.tk_img = ImageTk.PhotoImage(img_resized)
+            self.canvas.delete('all')
+            self.canvas.create_image((canvas_w-new_w)//2, (canvas_h-new_h)//2, anchor='nw', image=self.tk_img)
+            self.canvas.config(scrollregion=self.canvas.bbox('all'))
+        except Exception as e:
+            print(f"Error displaying image: {e}")
 
     def on_resize(self, event):
         self.display_image()
