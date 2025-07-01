@@ -1,0 +1,4 @@
+reportlab
+pillow
+pandas
+pdf2image
