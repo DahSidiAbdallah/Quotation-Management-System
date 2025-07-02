@@ -868,6 +868,14 @@ class QuotationApp(tb.Window):
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de la génération du PDF : {e}")
 
+    def on_product_selected(self, event=None):
+        """Handle product selection and update unit price automatically."""
+        selected_type = self.product_type_var.get()
+        if selected_type in self.CONCRETE_PRICES:
+            self.unit_price_entry.delete(0, 'end')
+            self.unit_price_entry.insert(0, str(self.CONCRETE_PRICES[selected_type]))
+            self.update_totals()
+
     def update_totals(self, event=None):
         try:
             quantity = float(self.quantity_entry.get())
@@ -950,6 +958,7 @@ class QuotationApp(tb.Window):
         self.product_type_var = tk.StringVar()
         self.product_type_dropdown = ttk.Combobox(product_frame, textvariable=self.product_type_var, state='disabled')
         self.product_type_dropdown.grid(row=0, column=1, sticky='w', padx=5, pady=4)
+        self.product_type_dropdown.bind('<<ComboboxSelected>>', self.on_product_selected)
 
         ttk.Label(product_frame, text="Bon de commande :").grid(row=1, column=0, sticky='e', padx=5, pady=4)
         self.purchase_order_var = tk.StringVar()
@@ -1011,6 +1020,21 @@ class QuotationApp(tb.Window):
         conn.close()
         return row[0] if row else None
 
+    # Concrete type to price mapping (in MRU/m³)
+    CONCRETE_PRICES = {
+        'Béton C30 SR': 7772,
+        'Béton C25 SR': 5700,
+        'Béton C20 SR': 4700,
+        'Béton C15 SR': 4300,
+        'Béton C30': 0000,
+        'Béton C25': 4700,
+        'Béton C20': 4500,
+        'Béton C15': 4300,
+        'Béton C35 SR': 8352,
+        'Béton C45 SR': 0000,
+
+    }
+
     def update_product_types(self, event=None):
         cement_types = ['Ciment 42.5', 'Ciment 32.5', 'Ciment SR']
         concrete_types = ['Béton C15', 'Béton C20', 'Béton C20 SR', 'Béton C25', 'Béton C25 SR', 'Béton C45 SR', 'Béton C30', 'Béton C30 SR', 'Béton C35 SR', 'Béton C15 SR']
@@ -1029,8 +1053,15 @@ class QuotationApp(tb.Window):
             self.product_type_dropdown['values'] = []
         if self.product_type_dropdown['values']:
             self.product_type_var.set(self.product_type_dropdown['values'][0])
+            # Auto-set the unit price when a product type is selected
+            selected_type = self.product_type_var.get()
+            if selected_type in self.CONCRETE_PRICES:
+                self.unit_price_entry.delete(0, 'end')
+                self.unit_price_entry.insert(0, str(self.CONCRETE_PRICES[selected_type]))
+                self.update_totals()
         else:
             self.product_type_var.set('')
+            self.unit_price_entry.delete(0, 'end')
 
     def open_add_client(self):
         AddClientWindow(self)
