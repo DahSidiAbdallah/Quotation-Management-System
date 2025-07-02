@@ -7,6 +7,7 @@ from reportlab.lib.utils import ImageReader
 import os
 import json
 import sys
+import shutil
 from datetime import datetime
 from PIL import Image, ImageTk  # Added for logo support
 from tkinter import filedialog
@@ -15,9 +16,26 @@ from pdf_viewer import PDFPreviewWindow
 import ttkbootstrap as tb
 from ttkbootstrap.constants import *
 
+# Utility function to access data files when bundled with PyInstaller
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath('.'))
+    return os.path.join(base_path, relative_path)
+
 # Path to the SQLite database and logo image
-DB_PATH = 'clients.db'
-LOGO_PATH = 'MAFCI.png'  # Place your company logo here
+DB_FILENAME = 'clients.db'
+LOGO_PATH = resource_path('MAFCI.png')  # Place your company logo here
+
+# Determine writable database path. If the DB does not exist next to the
+# executable, copy the bundled default database there.
+APP_DIR = os.path.dirname(sys.argv[0])
+DB_PATH = os.path.join(APP_DIR, DB_FILENAME)
+DEFAULT_DB_PATH = resource_path(DB_FILENAME)
+if not os.path.exists(DB_PATH):
+    try:
+        shutil.copy(DEFAULT_DB_PATH, DB_PATH)
+    except Exception:
+        pass
 
 
 def init_db():

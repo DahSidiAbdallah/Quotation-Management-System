@@ -5,7 +5,7 @@ a = Analysis(
     ['quotation_app.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('clients.db', '.'), ('MAFCI.png', '.'), ('ATTM.png', '.'), ('TASIAST.png', '.'), ('FACTURE MODELE.png', '.')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
