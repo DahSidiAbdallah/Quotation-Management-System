@@ -966,7 +966,8 @@ class QuotationApp(tb.Window):
 
         # Auto-calculated fields
         totals_frame = ttk.LabelFrame(content_frame, text="Montants")
-        totals_frame.grid(row=2, column=0, columnspan=4, padx=15, pady=10, sticky='nsew')
+        # Align totals with the client frame for a cleaner look
+        totals_frame.grid(row=2, column=0, columnspan=2, padx=15, pady=10, sticky='nsew')
         self.ht_var = tk.StringVar(value="0.00")
         self.tva_var = tk.StringVar(value="0.00")
         self.ttc_var = tk.StringVar(value="0.00")
