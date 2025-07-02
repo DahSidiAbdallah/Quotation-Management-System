@@ -162,7 +162,8 @@ def create_pdf(pdf_filename, client_name, nif, rc, address, client_preferences,
     c.rect(box_left, table_y - row_height * 2, sum(col_widths), row_height,
            stroke=1, fill=0)
 
-    summary_y = table_y - row_height * 3 - section_gap
+    # Move the totals box slightly lower so it doesn't crowd the client details
+    summary_y = table_y - row_height * 3 - section_gap - 40
     summary_box_width = 260
     summary_box_height = 54
     summary_x = width - margin - summary_box_width
@@ -866,132 +867,6 @@ class QuotationApp(tb.Window):
             messagebox.showinfo("Succès", f"PDF généré avec succès : {os.path.basename(pdf_filename)}")
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de la génération du PDF : {e}")
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        # Save to DB
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('''INSERT INTO quotations (client_id, type, number, product, quantity, unit_price, date, purchase_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-              (client_id, doc_type, doc_number, product, quantity, unit_price, date_str, purchase_order))
-        conn.commit()
-        conn.close()
-        # Choose save location for PDF
-        default_name = f"{doc_type}_{client_name}_{doc_number}_{date_str.replace('-', '')}.pdf"
-        pdf_filename = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("Fichiers PDF", "*.pdf")], initialfile=default_name, title="Choisissez l'emplacement pour enregistrer le PDF")
-        if not pdf_filename:
-            return
-        # Generate PDF
-        try:
-            from reportlab.pdfgen import canvas
-            from reportlab.lib.pagesizes import A4
-            from reportlab.lib.utils import ImageReader
-            import os
-            c = canvas.Canvas(pdf_filename, pagesize=A4)
-            width, height = A4
-            margin = 40
-            # LOGO & COMPANY INFO
-            logo_y = height - margin - 60
-            company_info = [
-                "Société Mauritano-Française des ciments",
-                "Tel:+222 45 29 85 56 / mob:+222 45 29 48 17",
-                "Email : info@mafci.mr",
-                "Route de Rosso, Zone Port, Nouakchott-Mauritanie",
-                "Capital: 431.000.000 MRU",
-                "RC: 200721 / NIF: 30400224"
-            ]
-            if os.path.exists(LOGO_PATH):
-                c.drawImage(ImageReader(LOGO_PATH), margin, logo_y, width=90, height=60, mask='auto')
-            c.setFont("Helvetica-Bold", 11)
-            info_y = logo_y + 60
-            for line in company_info:
-                c.drawString(margin + 100, info_y, line)
-                info_y -= 13
-            # BLUE BAR (TYPE/NUMBER)
-            bar_y = height - margin - 80
-            c.setFillColorRGB(0.19, 0.44, 0.72)
-            c.roundRect(margin, bar_y, width-2*margin, 30, 8, fill=1, stroke=0)
-            c.setFillColorRGB(1, 1, 1)
-            c.setFont("Helvetica-Bold", 15)
-            c.drawCentredString(width/2, bar_y+9, f"{qtype.upper()}  N° {number}")
-            c.setFillColorRGB(0, 0, 0)
-            # CLIENT INFO BOX
-            box_left = margin
-            box_top = bar_y - 15
-            box_width = width - 2*margin
-            box_height = 60
-            c.roundRect(box_left, box_top-box_height, box_width, box_height, 7, stroke=1, fill=0)
-            c.setFont("Helvetica", 10)
-            c.drawString(box_left+12, box_top-18, f"Date : {date_str}")
-            c.drawString(box_left+12, box_top-34, f"Client : {client_name}")
-            c.drawString(box_left+box_width/2, box_top-18, f"Adresse : {address}")
-            c.drawString(box_left+box_width/2, box_top-34, f"RC : {rc}   NIF : {nif}")
-            # PRODUCT TABLE
-            table_y = box_top - box_height - 30
-            col_widths = [180, 80, 100, 100]
-            x_positions = [box_left, box_left+col_widths[0], box_left+col_widths[0]+col_widths[1], box_left+col_widths[0]+col_widths[1]+col_widths[2]]
-            headers = ["Désignation", "Quantité", "Prix Unitaire", "Montant"]
-            c.setFont("Helvetica-Bold", 10)
-            for i, header in enumerate(headers):
-                c.drawString(x_positions[i]+5, table_y, header)
-            c.line(box_left, table_y-2, box_left+sum(col_widths), table_y-2)
-            c.setFont("Helvetica", 10)
-            montant = quantity * unit_price
-            c.drawString(x_positions[0]+5, table_y-18, product)
-            c.drawRightString(x_positions[1]+col_widths[1]-8, table_y-18, f"{quantity:,.2f}")
-            c.drawRightString(x_positions[2]+col_widths[2]-8, table_y-18, f"{unit_price:,.2f}")
-            c.drawRightString(x_positions[3]+col_widths[3]-8, table_y-18, f"{montant:,.2f}")
-            c.rect(box_left, table_y-30, sum(col_widths), 25, stroke=1, fill=0)
-            # SUMMARY (HT/TVA/TTC)
-            summary_y = table_y-40
-            c.setFont("Helvetica-Bold", 10)
-            summary_table_headers = ["", "Montant HT", "TVA (16%)", "Montant TTC"]
-            summary_col_widths = [100, 120, 120, 120]
-            summary_x_positions = [width-margin-sum(summary_col_widths), width-margin-summary_col_widths[1]-summary_col_widths[2], width-margin-summary_col_widths[2], width-margin]
-            for i, header in enumerate(summary_table_headers):
-                c.drawString(summary_x_positions[i]+2, summary_y, header)
-            c.line(summary_x_positions[0], summary_y-2, summary_x_positions[-1], summary_y-2)
-            c.setFont("Helvetica", 10)
-            c.drawRightString(summary_x_positions[1]+summary_col_widths[1]-8, summary_y-18, f"{montant_ht:,.2f}")
-            tva = montant_ht * 0.16
-            c.drawRightString(summary_x_positions[2]+summary_col_widths[2]-8, summary_y-18, f"{tva:,.2f}")
-            ttc = montant_ht + tva
-            c.drawRightString(summary_x_positions[3]+summary_col_widths[3]-8, summary_y-18, f"{ttc:,.2f}")
-            c.rect(summary_x_positions[0], summary_y-30, sum(summary_col_widths), 25, stroke=1, fill=0)
-            # PAYMENT/BANK INFO + QR (BOTTOM)
-            pay_y = 60
-            try:
-                import qrcode
-                from io import BytesIO
-                qr = qrcode.QRCode(box_size=2, border=1)
-                qr.add_data('MR130030000101006313901-73')
-                qr.make(fit=True)
-                img = qr.make_image(fill_color="black", back_color="white")
-                buf = BytesIO()
-                img.save(buf, format='PNG')
-                buf.seek(0)
-                c.drawImage(ImageReader(buf), margin, pay_y, width=52, height=52)
-            except Exception:
-                pass
-            c.setFont("Helvetica-Bold", 10)
-            c.drawString(margin+62, pay_y+40, "Paiement par virement bancaire uniquement :")
-            c.setFont("Helvetica", 9)
-            c.drawString(margin+62, pay_y+28, "Banque : BAMIS")
-            c.drawString(margin+62, pay_y+16, "Compte :  00001 01006313901-73")
-            c.drawString(margin+62, pay_y+4, "IBAN : MR130030000101006313901-73")
-            c.drawString(margin+62, pay_y-8, "Devise : MRU")
-            # FOOTER
-            pied = ""
-            if client_preferences.get('afficher_pied', True):
-                pied = client_preferences.get('pied_page', '')
-                if pied:
-                    c.setStrokeColorRGB(0.7,0.7,0.7)
-                    c.setLineWidth(0.5)
-                    c.line(margin, 35, width-margin, 35)
-                    c.setFont("Helvetica-Oblique", 9)
-                    c.drawString(margin, 25, pied)
-            c.save()
-            messagebox.showinfo("Succès", f"PDF généré avec succès :\n{os.path.basename(pdf_filename)}")
-        except Exception as e:
-            messagebox.showerror("Erreur", f"Erreur lors de la génération du PDF : {e}")    
 
     def update_totals(self, event=None):
         try:
